@@ -772,6 +772,7 @@ def convertToInitialLetters(text):
 class taskCog(commands.Cog): 
 	def __init__(self, bot):
 		self.bot = bot
+		self.checker = True
 
 		self.main_task.start()
 
@@ -816,6 +817,8 @@ class taskCog(commands.Cog):
 			print("명치복구완료!")
 			await dbLoad()
 			await self.bot.get_channel(channel).send( '< 다시 왔습니다!(보이스 미사용) >', tts=False)
+
+		self.checker = True
 
 		boss_task = asyncio.Task(self.boss_check())
 		return
@@ -869,9 +872,11 @@ class taskCog(commands.Cog):
 						await self.bot.get_channel(basicSetting[6]).connect(reconnect=True, timeout=5)
 						if self.bot.voice_clients[0].is_connected() :
 							await self.bot.get_channel(channel).send( '< 다시 왔습니다! >', tts=False)
+							self.checker = True
 							print("명치복구완료!")
 					except:
 						await self.bot.get_channel(channel).send( '< 음성채널 접속 에러! >', tts=False)
+						self.checker = False
 						print("명치복구실패!")
 						pass
 					await dbLoad()
@@ -921,6 +926,25 @@ class taskCog(commands.Cog):
 					else:
 						contents12 = repo_restart.get_contents("restart.txt")
 						repo_restart.update_file(contents12.path, "restart_1", "", contents12.sha)
+
+				############# 음성접속! ###########
+				if len(self.bot.voice_clients) == 0 and self.checker and basicSetting[21] == "1":
+					try:
+						await self.bot.get_channel(basicSetting[6]).connect(reconnect=True, timeout=5)
+						print(f"{now.strftime('%Y-%m-%d %H:%M:%S')} : 음성 채널 자동 재접속완료!")
+					except discord.errors.ClientException as e:
+						print(f"{now.strftime('%Y-%m-%d %H:%M:%S')} : 음성 자동 접속 부분에서 서버 음성 채널 이미 접속 에러 : {e}")
+						self.checker = False
+						pass
+					except Exception as e:
+						print(f"{now.strftime('%Y-%m-%d %H:%M:%S')} : 음성 자동 접속 부분에서 서버 음성 채널 타임아웃 에러 : {e}")
+						self.checker = False
+						pass
+					if not self.bot.voice_clients[0].is_connected():
+						print(f"{now.strftime('%Y-%m-%d %H:%M:%S')} : 음성 채널 자동 복구실패!")
+						await self.bot.get_channel(channel).send( '< 음성 채널 접속에 실패하였습니다. 잠시 후 음성 채널 접속을 시도해주세요! >')
+						self.checker = False
+						pass
 				
 				################ 킬 목록 초기화 ################ 
 				if kill_Time.strftime('%Y-%m-%d ') + kill_Time.strftime('%H:%M') == now.strftime('%Y-%m-%d ') + now.strftime('%H:%M'):
@@ -1098,6 +1122,8 @@ class taskCog(commands.Cog):
 											pass
 
 			await asyncio.sleep(1) # task runs every 60 seconds
+
+		self.checker = False
 		
 		for voice_client in self.bot.voice_clients:
 			if voice_client.is_playing():
@@ -2818,6 +2844,9 @@ class mainCog(commands.Cog):
 
 		msg = ctx.message.content[len(ctx.invoked_with)+1:]
 		channel = ctx.message.channel.id #메세지가 들어온 채널 ID
+
+		if channel == basicSetting[7] and msg in ["사다리", "정산", "척살", "경주", "아이템"]:
+			return await ctx.send(f'명령어 채널은 `{msg} 채널`로 `설정`할 수 없습니다.', tts=False)
 
 		if msg == '사다리' : #사다리 채널 설정
 			inidata_textCH = repo.get_contents("test_setting.ini")
